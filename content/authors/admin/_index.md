@@ -23,7 +23,7 @@ bio: My research interests include spatial cognition, navigation, visualization,
 interests:
 - Spatial cognition
 - Navigation
-- Visualization
+- Data visualization
 - Human-computer interaction
 
 education:
