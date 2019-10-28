@@ -1,0 +1,148 @@
+---
+title: "Structural Equation Modeling in R Tutorial 4: Introduction to lavaan using path analysis"
+authors: ["admin"]
+date: 2017-09-26
+tags: ['structural equation modeling', 'regression', 'path analysis', 'R', 'lavaan']
+categories: ['structural equation modeling', 'regression', 'path analysis', 'R', 'lavaan']
+output: blogdown::html_page
+---
+
+{{% toc %}}
+
+Made for Jonathan Butner's Structural Equation Modeling Class, Fall 2017, University of Utah. This handout will serve as an introduction to the lavaan package in R, which can be used for structural equation modeling. Mainly, we will focus on how path models can be conducted simply as a series of regressions in the R package lavaan, including estimation of indirect effects with bootstrapping. It will also be briefly reviewed how to fix parameters in lavaan, as well as inspect the underlying matrices of your model. This syntax imports the 4 variable dataset from datafile pathmodel example 3.txt. Note in the comments some additional coding options for things like missing data and standardized estimates. 
+
+For more on using lavaan in R, please see the [lavaan documentation website](http://lavaan.ugent.be). See [this page](http://lavaan.ugent.be/tutorial/cov.html) for more on how to run SEM's in lavaan using simply a covariance matrix if you do not have raw data available. 
+
+```{r include=FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+options(scipen=999)
+```
+
+## Data Input
+First, we will read in datafile and clean up the datafile a little bit.
+```{r message=FALSE}
+library(psych) #for descriptives
+library(lavaan) 
+library(semPlot) #for plotting lavaan objects
+#make sure to set your working directory to where the file is located, e.g. setwd("D:/Downloads/Handout 1 - Regression")
+#you can do this in R Studio by going to the Session menu - "Set Working Directory" - To Source File Location
+socdata <- read.fortran("pathmodel example 3.txt", c("F12.0", "3F13.0"))
+#note: #The format for a field is of one of the following forms: rFl.d, rDl.d, rXl, rAl, rIl, where l is the number of columns, d is the number of decimal places, and r is the number of repeats. F and D are numeric formats, A is character, I is integer, and X indicates columns to be skipped. The repeat code r and decimal place code d are always optional. The length code l is required except for X formats when r is present.
+
+socdata <- read.table("pathmodel example 3.txt") #this does the same thing as read.fortran above!
+
+#add column names
+names(socdata) <- c("Behavior", "Snorm", "Belief", "Intent")
+
+#get descriptives for the data
+describe(socdata)
+```
+
+## Introduction to Lavaan
+Now, we'll complete a series of regressions using the lavaan package. First, we will test a reduced model, where beliefs and social norms cause intentions and intentions cause behaviors.  If you remember from earlier in class, this is Azjen and Fishbein's theory of planned behavior. 
+
+![Reduced path model](img1.png)
+
+
+![Lavaan basics. These are the foundational symbols of lavaan that you can use to build models as I do below. Simply make a new line for each relationship you want to model. Note that you can also include comments in your model using the # if you want to leave yourself notes.](table1.png)
+
+Lavaan syntax is fairly straightforward and parallels MPlus syntax nicely. Note that there are other tricks in lavaan that go beyond the scope of path modeling, but are foreshadowing later parts of the course with more advanced models. Note in the comments below how you can fix parameters using a number and an `*`. You can also set equality contraints by multiplying two parameters by the same name, such as `beta1*Belief + beta1*Snorm`. 
+
+Note how we are very explicit in the specification of our model, and code the unanalyzed relationship, or correlation, between beliefs and social norms. Lavaan will default to this behavior (correlating exogenous variables), but often it is useful to explicitly specify all parts of the model. 
+```{r warning=FALSE}
+model.reduced <- 'Behavior ~ Intent + 0*Snorm
+Intent ~ Belief + Snorm
+Belief ~~ Snorm
+' #specify our model
+
+#Including "0*" before a variable will fix that relationship to 0 (or whatever other number you choose to specify). In this example we fixed the casual pathway between belief snorm and behavior to 0 (the 2 paths constrained from the fully saturated model). However, we can leave out this line of code, as lavaan will default to fixing these relationships to 0 if we did not ask it to estimate them.
+
+#the estimator = "ML" tells lavaan to implement maximum likelihood estimation. This is the default in lavaan. 
+
+#the missing = ML function tells lavaan to treat "NA" values in your dataset as missing and use full information maximum likelihood estimation to handle this missingness. Note that this should only be used with MAR (missing at random) or MCAR (missing completely at random) data.
+
+model.reduced.fit <- sem(model.reduced, estimator = "ML", data=socdata)  #fit our model #add missing = "ML" for missing data. 
+summary(model.reduced.fit, fit.measures=TRUE) #ask R for our results
+
+#lets use semPlot to plot our results!
+semPaths(model.reduced.fit, "par", edge.label.cex = 1.2, fade=FALSE)
+```
+
+
+Note how lavaan defaults to certain behaviors sometimes such as estimating intercepts for a path model even though we did not explicily pass that argument to our model. Next, we will run the fully saturated model where we've allowed beliefs and social norms to also cause behaviors without having to go through intentions. There will be a final regression that accounts for intentions, social norms, and beliefs all predicting behavior simultaneously. We'll also calculate the indirect effect between beliefs and behaviors through intentions. Note that we'll bootstrap standard errors and our test statistics, in order to account for the violation of normality that occurs when multiplying two normal distributions when we create the indirect effect.
+
+![Fully saturated path model](img4.png)
+
+
+
+```{r warning=FALSE}
+model.full <- 'Behavior ~ b*Intent + Snorm + Belief
+Intent ~ Snorm + a*Belief
+Belief ~~ Snorm
+Behavior ~ 1
+Belief ~ 1
+Intent ~ 1
+Snorm ~ 1
+#calculate indirect effect. a* is where our predictor predicts the mediating variable. 
+#b* is where our mediator predicts the final dependent variable.
+ab := a*b' #specify our model. note here we explicitly ask for intercepts, as opposed to in our previous model
+model.full.fit <- sem(model.full,  se="bootstrap", test="bootstrap", data=socdata) #fit the model to an object
+summary(model.full.fit, fit.measures=TRUE) #ask R for results
+
+#Note that we bootstrap SEs and test statistics as well
+
+#note you can ask for standardized results with the below command
+#summary(model.full.fit, fit.measures=TRUE, standardized=TRUE)
+
+#the code below bootstraps parameter estimates 500 times using multiple processors on your CPU 
+#model.full.fit.bootstrap <- bootstrapLavaan(model.full.fit, R = 500L, parallel = "multicore") 
+
+#lets use semPlot to plot our results!
+semPaths(model.full.fit, "par", edge.label.cex = 1.2, fade=FALSE)
+```
+<br>
+
+## Inspecting matrices when things go wrong
+
+Sometimes, our model will not converage, standard errors will explode, or psi matrices will not be positive definite. In this case, its often helpful to inspect the matrices underlying your model construction. This is analogous to the "TECH" command in MPlus. In this example we'll inspect our fully saturated model.
+
+```{r}
+inspect(model.full.fit, "start") #this provides the starting values for parameters
+inspect(model.full.fit, "free") #this provides the parameters that are free 
+#(in other words, the parameters that are estimated)
+```
+
+<br>
+## Modeling in Lavaan Using a Covariance Matrix
+Imagine that you're interesting in conducting follow-up analyses on another researcher's manuscript, but only have access to their covariance matrix, which was provided in an appendix.  You'll sometimes not have access to raw data, and instead want to run a lavaan model using a covariance matrix input.  The following code shows how this differs from specifying a model with raw data, as is shown previously.
+```{r}
+socdata.cov <- cov(socdata) #this time we'll just pull the covariance matrix from our data 
+#as a demonstration. But note that sometimes covariance matrices are 
+#published and so you can simply manually enter them.
+socdata.cov #will print covariance matrix. 
+#you can just copy paste this into the model and delete the upper triangle values.
+#assigns to object that lavaan will understand
+lower <- '4.996093 
+          4.164750 4.068619 
+          1.468777 1.387127 0.9156302 
+          1.601469 1.572911 0.3958586 1.0225483' 
+# convert to a full symmetric covariance matrix with names
+test.cov <- getCov(lower, names = c("Behavior", "Snorm", "Belief", "Intent"))
+#reproduce the fully saturated model from earlier
+model.fromcov <- 'Behavior ~ b*Intent + Snorm + Belief
+Intent ~ Snorm + a*Belief
+Belief ~~ Snorm
+Behavior ~ 1
+Belief ~ 1
+Intent ~ 1
+Snorm ~ 1
+#calculate indirect effect. a* is where our predictor predicts the mediating variable. 
+#b* is where our mediator predicts the final dependent variable.
+ab := a*b'
+fit.fromcov <- sem(model.fromcov, 
+           sample.cov = test.cov, 
+           sample.nobs = 180)
+summary(fit.fromcov)
+```
+And, magically, we exactly replicate our results from the earlier model computed using raw data. This is because SEM always does calculations using the correlation and/or covariance matrices rather than raw data.

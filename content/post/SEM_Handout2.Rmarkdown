@@ -1,0 +1,126 @@
+---
+title: "Structural Equation Modeling in R Tutorial 2: Matrix algebra using R"
+authors: ["admin"]
+date: 2017-09-01
+tags: ['structural equation modeling', 'regression', 'matrix algebra', 'R']
+categories: ['structural equation modeling', 'regression', 'matrix algebra', 'R']
+output: blogdown::html_page
+---
+
+{{% toc %}}
+
+Made for Jonathan Butner's Structural Equation Modeling Class, Fall 2017, University of Utah. This handout begins by showing how to import a matrix into R. Then, we go through how to create matrices and vectors in R as well as perform a few matrix algebra operations, such as transposing and inversing matrices. This syntax imports the 6x6 matrix from datafile Matrix.txt. Note that a helpful resource for working with matrices in R can be found at http://www.statmethods.net/advstats/matrix.html. 
+
+```{r include=FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+options(scipen=999)
+```
+
+## Data Input
+First, we will read in datafile using Fortran and clean up the datafile a little bit. Most matrix functions are built into base R, so you won't need many outside packages. 
+```{r}
+#make sure to set your working directory to where the file is located, e.g. setwd("D:/Downloads/Handout 1 - Regression")
+#you can do this in R Studio by going to the Session menu - "Set Working Directory" - To Source File Location
+A <- read.fortran("MatrixA.txt", c("6F5.3"))
+#note: #The format for a field is of one of the following forms: rFl.d, rDl.d, rXl, rAl, rIl, where l is the number of columns, d is the number of decimal places, and r is the number of repeats. F and D are numeric formats, A is character, I is integer, and X indicates columns to be skipped. The repeat code r and decimal place code d are always optional. The length code l is required except for X formats when r is present.
+
+#add column names
+names(A) <- c("a1", "a2", "a3", "a4", "a5", "a6")
+
+#make into a matrix
+A <- data.matrix(A)
+
+#print the matrix
+A
+```
+<br>
+## Creating Matrices and Vectors
+Now, we'll show how to make Matrices and Vectors from scratch. Note the first comment, which indicates the structure of the function used to generate matrices. 
+```{r}
+#computing Hat matrix
+#matrix(data, nrow, ncol, byrow) #matrix function template where data is a vector or list, nrow is number of rows, ncol is number of columns, byrow is whether or not to enter the data by row or by column (default is false, or by column)
+
+#B and C are 3x2 matrices
+B <- matrix(c(1,2,3,4,5,6), 
+            3,2, byrow=TRUE)
+C <- matrix(c(5,3,5,4,9,6), 
+            3,2, byrow=TRUE)
+
+#D is a 2x2 matrix
+D <- matrix(c(5,4,4,9), 
+            2,2, byrow=TRUE)
+
+#E and F are vectors
+E <- matrix(c(2,3,4,5,9,6), 
+            6, 1, byrow=TRUE)
+F <- matrix(c(2,3,4,5,9,6), 
+            1,6, byrow=TRUE)
+
+#G is a 3x3 matrix
+G <- matrix(c(2, 3, 5, 3, 9, 6, 5, 9, 1), 
+            3,3, byrow=TRUE)
+
+#print the results of our matrices
+B
+C
+D
+E
+F
+G
+```
+<br>
+## Operations Using Matrices
+
+We now have the matrices entered that we need, so now we can do matrix algebra. First, we'll compute the inverse of matrix A. Next we will compute the determinant of matrix A. Then, we will compute the trace of matrix A. Note that the trace of a (square) matrix is just the sum of the diagonal elements. Each will be assigned to new objects.
+
+```{r}
+Ainv <- solve(A) #inverse of matrix A
+Adet <- det(A) #determinant of matrix A
+Atrace <- sum(diag(A))  #trace of matrix A
+
+#print the results
+Ainv
+Adet
+Atrace
+```
+
+Now we will compute some simpler operations with matrices, such as addition, multiplication, and transposing. The transpose of a matrix is a new matrix whose rows are the columns of the original. (This makes the columns of the new matrix the rows of the original). Note how the multiplication symbol for matrix multiplication differs from the typical multiplication symbol. 
+```{r}
+H <- B+C #add matrices B and C
+I <- B-C #subtract matrix C from matrix B
+J <- B%*%D #multiply matrices B and D
+Etrans = t(E) #compute the transpose of matrix E.
+
+#print the results
+H
+I
+J
+Etrans
+```
+
+Now we will compute some more complex operations with matrices. First, we will multiply matrix F by the inverse of matrix A by the transpose of F. Note that you have not previously transposed F, so you will perform that operation as part of your calculation.
+```{r}
+K <- F%*%Ainv%*%t(F) #multiply matrix F by the inverse of matrix A by the transpose of F
+#print the results
+K
+```
+
+Next, we will multiply a matrix by a scalar value of 3. 
+```{r}
+L <- D*3 #multiply by a scalar of 3
+#print the results
+L
+```
+
+
+Here, we will decompose matrix A into its eigenvalues and eigenvectors using the eigen() function. Note that `Aeigen$val` will hold the eigenvalues of A while `Aeigen$vec` will hold the eigenvectors of A. 
+```{r}
+Aeigen <- eigen(A) #Note that `Aeigen$val` will hold the eigenvalues of A while `Aeigen$vec` will hold the eigenvectors of A.
+O <- kronecker(D,G) #compute the Kronecker product of D and G
+
+#print the results
+Aeigen$val #print eigenvalues
+Aeigen$vec #print eigenvectors
+O #kronecker product of D and G
+```

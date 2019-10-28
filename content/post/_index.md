@@ -1,5 +1,5 @@
 ---
-title: Posts
+title: Data Analysis Posts & Tutorials
 
 # View.
 #   1 = List

@@ -1,0 +1,109 @@
+---
+title: "Structural Equation Modeling in R Tutorial 5: Exploratory Factor Analysis using psych in R"
+authors: ["admin"]
+date: 2017-10-08
+tags: ['structural equation modeling', 'exploratory factor analysis', 'data reduction', 'R', 'lavaan']
+categories: ['structural equation modeling', 'exploratory factor analysis', 'data reduction', 'R', 'lavaan']
+output: blogdown::html_page
+---
+
+{{% toc %}}
+
+Made for Jonathan Butner's Structural Equation Modeling Class, Fall 2017, University of Utah. This handout begins by showing how to import a matrix into R. Then, we will overview how to determine number of factors, or dimensions, to extract from your data. Next, we will overview how to extract factors and perform a facor analysis without rotation. Finally, we'll review a few rotation methods, specifically focusing on two types of rotation: orthogonal, which does not allow latent factors to correlate (correlations between latent factors are constrained at 0), and oblique, which allows latent factors to correlate. This syntax imports the 9 variable, 615 person dataset from datafile hbmpre1.txt. The dataset is from Leona Aiken and includes multiple items indicating women's perceived susceptibility and severity of getting cancer. The first four items are believed to be indicators of susceptibility of getting cancer again, the last five items are believed to be indicators of severity of cancer. 
+
+```{r include=FALSE}
+require(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+options(scipen=999)
+```
+
+## Data Input
+First, we will read in datafile using Fortran and clean up the datafile a little bit.
+```{r}
+library(psych) #for doing exploratory factor analysis
+library(GPArotation) #for doing rotation
+
+#make sure to set your working directory to where the file is located, e.g. setwd("D:/Downloads/Handout 1 - Regression")
+#you can do this in R Studio by going to the Session menu - "Set Working Directory" - To Source File Location
+efadat <- read.fortran("hbmpre1.txt", c("F5.0", "9F5.0"), na.strings = 99)
+#note that we recode missing values!
+#note: #The format for a field is of one of the following forms: rFl.d, rDl.d, rXl, rAl, rIl, where l is the number of columns, d is the number of decimal places, and r is the number of repeats. F and D are numeric formats, A is character, I is integer, and X indicates columns to be skipped. The repeat code r and decimal place code d are always optional. The length code l is required except for X formats when r is present.
+
+efadat <- read.table("hbmpre1.txt", na.strings = 99) #this does the same thing as the read.fortran statement above
+
+#add column names
+names(efadat) <- c("id", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9")
+
+efamat <- cor(efadat[,2:10], use="complete.obs") #make a correlation matrix, since many factor 
+#analysis functions in R only work on correlation matrices. use=comlete obs means that we implement listwise deletion of missing values
+#note that we subset out the ID column of the dataset so that
+#we dont make a correlation with ID. This code means to select
+#all rows and only columns 2 through 10 from the dataframe efadat. 
+```
+<br>
+## Scree Plot and Parallel Analysis
+One more traditional way to determine the number of factors to extract is to make a scree plot. This is probably the oldest and most "subjective" way of determining extraction, but still works if you have clean enough data. Here I'll show that technique together with parallel analysis, since a single command will give you both. Parallel Analysis is arguably the preferred technique right now for determining number of factors to extract. Parallel Analysis essentially simulates data that is similar to yours but where there is less commonality between items. It then uses this simulated data to provide reasonable suggested cutoffs for your scree plot (that you would normally make just eyeballing the scree plot). It provides a more objective evaluation of the scree plot than the eye test. 
+```{r}
+fa.parallel(efamat, n.obs = 615) #parallel analysis
+#n.obs is the number of people/rows in your dataset.
+#Note that if you use a correlation matrix for any function, 
+#you will likely have to use the n.obs argument. 
+
+#if you wanted to manually build a scree plot, use the below code, which plots eigenvalues
+#plot(eigen(efamat)$values)
+```
+
+In this output, the scree plot is represented by the blue line with triangles (labelled FA actual data). The parallel analysis here suggests extraction of 2 factors.
+<br>
+## Minimum Average Partial
+Another way to determine number of factors to extract is to use the minimum average partial (MAP). The minimum average partial is a method suggested by Velicer (1976). The vss function is from the psych package, and will plot fit for various factor fits to the data. In the plot provided, higher on the y axis is better. For the minimum average partial, you're looking for the "The Velicer MAP achieves a minimum of 0.06 with 2 factors" part of the output. Lower numbers indicate better fit with the minimum average partial. Notice here that the minimum average partial result converges with the suggestion from parallel analysis, suggestng that 3 factors is likely the correct number to extract from your data. 
+```{r}
+vss(efamat, n.obs=615, rotate = "varimax", diagonal = FALSE, fm = "minres")
+```
+
+<br>
+## Factor Extraction
+A first method of factor extraction is referred to as Principal Components analysis, or PCA. Principal compoennts analysis differs from Principal axis factoring and other factor analysis techniques in that it assumes that there are no item-based errors, or residuals (the unique errors for each item are 0, all variance is a part of the true score latent variable). 
+
+```{r width=60}
+components.norotate <- principal(efamat, nfactors=2, rotate="none") #principal components analysis
+components.norotate #ask for loadings and variance accounted for
+```
+Note how these two components alone account for 78% of the variance in our items! Before getting into rotation, I'll review another factor extraction technique called principal axis factoring. Principal axis factoring is sometimes referred to as PAF in the literature. Principal axis factoring and other factor analysis techniques differ from principal compoennts analysis in that they assume item-based errors, or residuals. Note that there are several estimation methods that can be used to extract factors, only one of which I demonstrate here. See comments in the code for more on alternative estimation methods, such as maximum likelihood, which assumes multivariate normality.
+
+```{r width=60}
+factor.2.norotate <- fa(efamat, nfactors=2, n.obs= 615, rotate="none", fm="pa")
+factor.2.norotate #per variable loadings for 3 factors, unrotated solution 
+
+#Note that there are several estimation methods that can be used to extract factors, only one of which I demonstrate here. The following is taken from the documentation of the fa function: Factoring method fm="minres" will do a minimum residual as will fm="uls". Both of these use a first derivative. fm="ols" differs very slightly from "minres" in that it minimizes the entire residual matrix using an OLS procedure but uses the empirical first derivative. This will be slower. fm="wls" will do a weighted least squares (WLS) solution, fm="gls" does a generalized weighted least squares (GLS), fm="pa" will do the principal factor solution, fm="ml" will do a maximum likelihood factor analysis. fm="minchi" will minimize the sample size weighted chi square when treating pairwise correlations with different number of subjects per pair. fm ="minrank" will do a minimum rank factor analysis. "old.min" will do minimal residual the way it was done prior to April, 2017.
+```
+PA1 and PA2 indicate the principal axes, or factors. The numbers in each column represent the loading of each item (row) with each factor (column).
+
+<br>
+## Orthogonal Rotation Using Varimax
+Even if this is the most reasonable fit for our data, often, unrotated solutions are very difficult to interpret. Rotation usually helps to implement simple structure, where items load highly (.5 or above) with only one factor and fairly low (.2 or lower) with all other factors. This makes it so that you have a better sense of what your latent constructs represent. In this case, the below code will demonstrate how to fit an orthogonal solution, which means that latent factors are not allowed to correlate. Note that this is the stage where you would be deciding whether items are poor items or not (cross-loadings, where an item loads .4 or above with more than one factor is usually considered poor, or an item that does not load highly with any factor (below .4 or .5) are also generally considered poor (Tabachnick and Fidell, 2011). In this case, you would remove the item and redo the factor analysis from the extraction phase. 
+
+The type of rotation demonstrated below is an orthogonal rotation. This makes it so that the latent factors are not allowed to correlate (the correlations are fixed at zero). There are many types of orthogonal rotations, varimax is just one of many. You will want to test a few different types of rotations to see which makes the most intepretable solution (with the simplest structure possible) for your data. 
+```{r}
+factor.2.orthog <- fa(efamat, 
+                      nfactors=2, 
+                      n.obs = 615, 
+                      rotate="varimax", 
+                      fm="pa") 
+#2 factor orthogonal rotation using varimax
+
+factor.2.orthog #print results
+#arguments for rotate are: "none", "varimax", "quartimax", "bentlerT", "equamax", "varimin", "geominT" and "bifactor" are orthogonal rotations. "Promax", "promax", "oblimin", "simplimax", "bentlerQ, "geominQ" and "biquartimin" and "cluster" are possible oblique transformations of the solution. The default is to do a oblimin transformation.
+```
+
+<br>
+## Oblique Rotation Using Direct Oblimin
+A second class of rotation is referred to as "oblique." This type of rotation allows latent factors to correlate.
+```{r}
+factor.2.oblique <- fa(efamat, 
+                       nfactors=2, 
+                       n.obs = 615, 
+                       rotate="oblimin", fm="pa") 
+#2 factor oblique rotation using direct oblimin rotation
+factor.2.oblique #print results
+```

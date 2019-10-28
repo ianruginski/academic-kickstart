@@ -1,0 +1,87 @@
+---
+title: "Structural Equation Modeling in R Tutorial 3: Path Analysis using R"
+authors: ["admin"]
+date: 2017-09-13
+tags: ['structural equation modeling', 'regression', 'path analysis', 'R']
+categories: ['structural equation modeling', 'regression', 'path analysis', 'R']
+output: blogdown::html_page
+---
+
+{{% toc %}}
+
+Made for Jonathan Butner's Structural Equation Modeling Class, Fall 2017, University of Utah. This handout begins by showing how to import a matrix into R. Then, we will overview how path models can be conducted simply as a series of regressions. such as transposing and inversing matrices. This syntax imports the 4 variable dataset from datafile pathmodel example 3.txt.
+
+```{r include=FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+options(scipen=999)
+```
+
+## Data Input
+First, we will read in datafile using Fortran and clean up the datafile a little bit.
+```{r}
+library(psych) #for descriptives
+#make sure to set your working directory to where the file is located, e.g. setwd("D:/Downloads/Handout 1 - Regression")
+#you can do this in R Studio by going to the Session menu - "Set Working Directory" - To Source File Location
+socdata <- read.fortran("pathmodel example 3.txt", c("F12.0", "3F13.0"))
+#note: #The format for a field is of one of the following forms: rFl.d, rDl.d, rXl, rAl, rIl, where l is the number of columns, d is the number of decimal places, and r is the number of repeats. F and D are numeric formats, A is character, I is integer, and X indicates columns to be skipped. The repeat code r and decimal place code d are always optional. The length code l is required except for X formats when r is present.
+
+socdata <- read.table("pathmodel example 3.txt") #this does the same thing as the read.fortran statement above!
+
+#add column names
+names(socdata) <- c("Behavior", "Snorm", "Belief", "Intent")
+
+#get descriptives for the data
+describe(socdata)
+```
+<br>
+## Path Models
+Now, we'll complete a series of regressions. First, we will test a reduced model, where beliefs and social norms cause intentions and intentions cause behaviors. Our first model will regress intent onto belief and social norms, the first portion of the path model. If you remember from earlier in class, this is Azjen and Fishbein's theory of planned behavior. 
+
+
+![Reduced path model](img1.png)
+
+
+![Reduced model regression 1](img2.png)
+
+
+```{r}
+model.reduced.1 <- lm(Intent ~ Belief + Snorm, socdata)
+summary(model.reduced.1)
+```
+You'l want to note the .638 R-squared value, which will be utilized in the Q*W calculation for model construction. Each of the R-squared values in the following regressions will be used to calculate Q. 
+
+Model 2, below, contains the remaining portion of the reduced model.
+
+![Reduced model regression 2](img3.png)
+
+```{r}
+model.reduced.2 <- lm(Behavior ~ Intent, socdata)
+summary(model.reduced.2)
+```
+
+
+Next, we will run the fully saturated model where we've allowed beliefs and social norms to also cause behaviors without having to go through intentions. There will be a final regression that accounts for intentions, social norms, and beliefs all predicting behavior simultaneously.
+
+![Fully saturated path model](img4.png)
+
+
+![Fully saturated model regression](img5.png)
+
+
+
+```{r}
+model.full.1 <- lm(Behavior ~ Intent + Snorm + Belief, socdata)
+summary(model.full.1)
+```
+Note how we need only one more regression equation (the equation above) to complete the fully saturated model. We will use the R-squared value from this regression to calculate Q below. 
+
+<br>
+## Models Using Q and W Indices
+
+![Comparing Models Using Q and W Indices](img6.png)
+
+
+
+
+
