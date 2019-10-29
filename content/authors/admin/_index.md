@@ -18,7 +18,7 @@ organizations:
   url: "https://www.geo.uzh.ch/en/units/giva.html"
 
 # Short bio (displayed in user profile at end of posts)
-bio: My research interests include spatial cognition, navigation, visualization, and human-computer interaction.
+bio: My research interests include spatial cognition, navigation, data visualization, and human-computer interaction.
 
 interests:
 - Spatial cognition

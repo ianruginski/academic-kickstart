@@ -2,8 +2,8 @@
 title: "Structural Equation Modeling in R Tutorial 5: Exploratory Factor Analysis using psych in R"
 authors: ["admin"]
 date: 2017-10-08
-tags: ['structural equation modeling', 'exploratory factor analysis', 'data reduction', 'R', 'lavaan']
-categories: ['structural equation modeling', 'exploratory factor analysis', 'data reduction', 'R', 'lavaan']
+tags: ['structural equation modeling', 'exploratory factor analysis', 'data reduction', 'measurement', 'R', 'lavaan']
+categories: ['structural equation modeling', 'exploratory factor analysis', 'data reduction', 'measurement', 'R', 'lavaan']
 output: blogdown::html_page
 ---
 

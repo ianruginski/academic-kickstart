@@ -1,0 +1,104 @@
+---
+title: "Structural Equation Modeling in R Tutorial 7: Full Structural Equation Modeling"
+authors: ["admin"]
+date: 2017-11-13
+tags: ['structural equation modeling', 'measurement', 'R', 'lavaan']
+categories: ['structural equation modeling', 'measurement', 'R', 'lavaan']
+output: blogdown::html_page
+---
+
+{{% toc %}}
+
+Made for Jonathan Butner's Structural Equation Modeling Class, Fall 2017, University of Utah. This handout begins by showing how to import a matrix into R. Then, we will overview how to establish a measurement model in R using the lavaan package.  As we go, I'll demonstrate how to quickly and easily plot the results of your confirmatory factor analysis using semPlot. ast, I'll demonstrate how to do basic model comparisons using lavaan objects, which will help to inform decisions related to which model fits your data better. This syntax imports the 14 variable, 307 person dataset called EXMP8MATRIX.txt, which is a free format text file. The data are for 13 observed variables comprising three theorized latent factors (Socioeconomic Status, Communication, and Conduct),  as well as biological sex, dummy coded as 0 or 1, where 0 is female and 1 is male. There is no missing data.
+
+```{r include=FALSE}
+require(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+options(scipen=999)
+```
+
+## Data Input
+First, we will read in the datafile and clean up the datafile a little bit, as well as load required packages.
+```{r message=FALSE, warning=FALSE}
+library(lavaan) #for doing the CFA
+library(semPlot) #for plotting your CFA
+library(dplyr) #for subsetting data quickly if needed
+
+#make sure to set your working directory to where the file is located, e.g. setwd("D:/Downloads/Handout 1 - Regression")
+#you can do this in R Studio using menus by going to the Session menu - "Set Working Directory" - To Source File Location
+semdat <- read.table("EXMP8MATRIX.txt")
+#note that this data is in free format so we use read.table
+
+#add column names
+names(semdat) <- c("Sex", "Pa_Ed", "Ma_Ed", "Pa_Occ", 
+                   "Ma_Occ", "Income", "Accept","Listen", 
+                   "Commun",  "Openness", "Patience", 
+                   "Act_Out", "Agress", "Hostile")
+head(semdat) #take a look at the beginning of our datafile
+```
+<br>
+## Structural Equation Modeling Using lavaan: Measurement Model
+
+Typically the first step in structural equation modeing is to establish what's called a "measurement model", a model which includes all of your observed variables that are going to be represented with latent variables. Constructing a measurement model allows to determine model fit related to the latent portion of your model. This way you can more precisely know where model misfit is most prevalent in your model. 
+
+Remember that `*` fixes variables to a particular value. Here we adopt the marker variable identification approach, where we fix the loading of one indicator in each latent to 1 in order to identify the model and give each latent factor a metric. This will not change model fit, just some of the loadings in the model. This makes it so that a one unit change in the latent factor is interpreted as a unit unit change in the scale of the observed variable selected as the marker variable (the variable loading we fix to 1). Note also that variances and disturbances (errors) are estimated by default. 
+```{r warning=FALSE}
+sem.model.measurement <- 'SES =~ 1*Pa_Ed + Ma_Ed + Pa_Occ + Ma_Occ + Income 
+#make 5 indicator latent socioeconomic status (SES) factor with parents education variable as the marker
+COM =~ 1*Accept + Listen + Commun + Openness + Patience 
+#make 5 indicator latent communication factor with accept variable as the marker
+Conduct =~ 1*Act_Out + Agress + Hostile 
+#make 3 indicator latent conduct factor with acting out variable as the marker'
+
+sem.fit.measurement <- sem(sem.model.measurement, data = semdat)
+summary(sem.fit.measurement, fit.measures=TRUE)
+semPaths(sem.fit.measurement, "par", edge.label.cex = 1.2, fade=FALSE) #plot our CFA
+```
+<br>
+In the figure, you can see the marker variables that we fixed to one as well as how each of the other observed variables loads onto each latent factor.From this model output, we can see that our fit is pretty good (CFI/TLI around .95, RMSEA approaching .05, SRMR < .05).
+
+<br>
+## Structural Equation Modeling Using lavaan: Full Model
+
+Now, we will estimate a full model that includes predictive components in addition to measurement components. We will still use the marker variable approach, making the measurement model portion of our model unchanged. 
+```{r warning=FALSE}
+sem.model.full <- 'SES =~ 1*Pa_Ed + Ma_Ed + Pa_Occ + Ma_Occ + Income #make 5 indicator latent socioeconomic status (SES) factor with parents education variable as the marker
+             COM =~ 1*Accept + Listen + Commun + Openness + Patience; #make 5 indicator latent communication factor with accept variable as the marker
+            Conduct =~ 1*Act_Out + Agress + Hostile #make 3 indicator latent conduct factor with acting out variable as the marker
+COM ~ Sex + SES #Regress COM on Sex and SES
+Conduct ~ Sex + COM #Regress Conduct on Sex and COM
+'
+
+sem.fit.full <- sem(sem.model.full, data = semdat)
+summary(sem.fit.full, fit.measures=TRUE) #ask for model results
+semPaths(sem.fit.full, "par", edge.label.cex = 1.2, fade=FALSE) #plot our CFA. you can change layout with layout = argument. see ?semPaths() for more. 
+```
+
+Next, we'll estimated an alternative, more saturated model that has one additional parameter estimated: the path between SES and conduct, with SES predicting Conduct.  Essentially, we add an additional predictor in our regression, whereas that parameter was fixed to 0 in our previous model. 
+```{r warning=FALSE}
+sem.model.full.1free <- 'SES =~ 1*Pa_Ed + Ma_Ed + Pa_Occ + Ma_Occ + Income #make 5 indicator latent socioeconomic status (SES) factor with parents education variable as the marker
+             COM =~ 1*Accept + Listen + Commun + Openness + Patience; #make 5 indicator latent communication factor with accept variable as the marker
+            Conduct =~ 1*Act_Out + Agress + Hostile #make 3 indicator latent conduct factor with acting out variable as the marker
+COM ~ Sex + SES #Regress COM on Sex and SES
+Conduct ~ Sex + COM + SES #Regress Conduct on Sex, COM, and SES
+'
+sem.fit.full.1free <- sem(sem.model.full.1free, 
+                          data = semdat)
+summary(sem.fit.full.1free, 
+        fit.measures=TRUE)
+semPaths(sem.fit.full.1free, "par", 
+         edge.label.cex = 1.2, fade=FALSE) #plot our CFA
+```
+
+Note how the effect of SES on Conduct is fairly weak (-.16 unstandardized, not significantly different from 0 ,p = 0.28). In addition, fit appears to have worsened (CFI/TLI are smaller, RMSEA/SRMR are larger), but we can explicitly quantitatively test this using the Chi-squared difference of fit test since the models are nested (more on that later), which we will do in the next section.
+<br>
+## Model Comparison Using lavaan
+Note that models that are compared using most fit statistics must be nested in order for the tests to be valid. Nested models are models that contain at least all of the same exact observed variables contained in the less complicated model. For nested models, you can only free or fix parameter(s), not do both. The underlying data matrix must be the exact same between models. The code below compares the reduced model with more df (regression between Conduct and SES fixed to 0) to the more saturated model with one less df (regression between Conduct and SES estimated). 
+
+```{r}
+anova(sem.fit.full, sem.fit.full.1free) #model fit comparison
+```
+Since we retain the null hypothesis using the chi-squared difference of fit test, this means that the less saturated model with one less parameter estimated (in this case, when the regression between Conduct and SES is fixed to 0) fits the data better than the more free model with that regression coefficient estimated. Specifically, the previous model chi-square was 139.486, DF=73, the change between the two is 139.486-138.345=1.141, DF=73-72=1, cutoff value in a chi-squared distribution for 1 df is 3.84 at p=.05. we retain the null thus the new model wth an additional parameter estimated is not a significant improvement over the first more restricted model where that parameter was fixed to 0.
+<br>
+## Interpreting and Writing Up Your Model
+Congratulations! You've just fun your first full SEM model and compared two models, settling on a model that is more plausible given model fit comparison. However, what about intepreting your final model? Interpreting mostly mirrors typical regression, where you can discuss one unit increases in your predictor leading to a beta coefficient increase or decrease in your outcome. From the full, better model above, for example, you would claim that a one unit change in Sex leads to a .90 increase in conduct while controlling for communication. Put more siimply considering dummy coding, men (1) have .9 higher conduct scores than women (0) controlling for communication. Latent variables that are predictors in regression equations follow the same rules, but keep in mind hte metric that you have set for the latent variable (how you chose to identify your latents) when interpreting. If you chose the factor variance identification approach, where you constrained the variance of the latent variable to 1, you will discuss interpretation in terms of one standard deviation changes in that latent variable. If you chose the marker variable identification approach, where you constrained the loading of one of your observed variables comprising your latent variable to 1, you discuss interpretation in terms of one unit changes in the metric of the marker variable. Since we chose the marker variable approach in our full model above, we would say that a one likert (the scale of acceptance, the marker) change in communication leads to a .485 decrease in conduct while controlling for sex.

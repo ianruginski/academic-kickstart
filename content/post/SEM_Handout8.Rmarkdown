@@ -1,0 +1,91 @@
+---
+title: "Structural Equation Modeling in R Tutorial 8: Introduction to Stacked Models and Factorial Measurement Invariance Testing"
+authors: ["admin"]
+date: 2017-12-01
+tags: ['structural equation modeling', 'measurement', 'R', 'lavaan']
+categories: ['structural equation modeling', 'measurement', 'R', 'lavaan']
+commentable: true
+output: blogdown::html_page
+---
+
+{{% toc %}}
+
+Made for Jonathan Butner's Structural Equation Modeling Class, Fall 2017, University of Utah. This handout will focus on implementing stacked models in lavaan, which allow us to test a model for two different groups (for example, control vs. intervention). This syntax imports the X variable, 192 person dataset called HW9 2017.csv, which is an comma separated  data file. The data are for 10 items on the SF36 scale collected at 2 timepoints (20 total observed items for the scale), as well as a condition variable where 0 is control and 1 is intervention. There is also a diagnosis variable with 3 diagnoses. There is missing data coded as 99 in the original datafile. See http://lavaan.ugent.be/tutorial/groups.html for more on stacked models in lavaan.
+
+```{r include=FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+options(scipen=999)
+```
+
+## Data Input
+First, we will read in the datafile and clean up the datafile a little bit, as well as load required packages.
+```{r message=FALSE, warning=FALSE}
+library(lavaan) #for doing the SEM
+library(dplyr) #for subsetting data quickly if needed
+
+#make sure to set your working directory to where the file is located, e.g. setwd("D:/Downloads/Handout 1 - Regression")
+#you can do this in R Studio using menus by going to the Session menu - "Set Working Directory" - To Source File Location
+semdat <- read.csv("HW9 2017.csv", 
+                   na.strings=99)
+#note that this data is in free format so we use read.table
+
+#fix first column name
+names(semdat)[1] <- c("condition")
+
+#create dummy variables for diagnosis (for demonstration - i won't show any models with diagnosis)
+semdat$d1[semdat$diag==2] <- 0
+semdat$d1[semdat$diag==1] <- 1
+semdat$d2[semdat$diag==2] <- 1
+semdat$d2[semdat$diag==1] <- 0
+
+head(semdat) #take a look at the beginning of our datafile
+```
+<br>
+## Stacked Models in Lavaan
+Your group variable should be specified using the `group = 'variablename'` argument. Notice that lavaan, unlike Mplus, does not automatically assume equality of lambdas (regression parameters) and taus (intercepts) across groups when generating stacked models.  Note that here we add an additional argument called `group.equal = c("loadings")`, which equates lambdas across groups. Think of this as assuming that there is no interaction with group (effect is same across groups). You can also extend this to include `group.equal = c('loadings', 'intercepts', 'residuals')`, amongst other arguments depending on which equality constraints you want to include in your model. Note that we can compare models where we have equal parameters across groups to a model where the parameters are different across groups. Note you can do the same with intercepts. You would then do a chi-sq difference test where you compare a model with equality constrants to a model where. This concept is called factorial measurement invariance testing (see the next section for how to do this). The bit of code specifying `missing = "fiml"` implements full information maximum likelihood estimation to handle missing data, which assumes that your data is missing at random (MAR) or missing completely at random (MCAR). 
+
+```{r warning=FALSE}
+sem.model.equality <- 'physfun =~ sf3+sf4+sf5+sf6+sf7+sf8+sf9+sf10+sf11+sf12'
+sem.fit.equality <- sem(sem.model.equality,
+                        data = semdat, 
+                        group = "condition", 
+                        group.equal = c("loadings"), 
+                        missing="fiml") 
+#missing = fiml implements full information ML for missingness
+summary(sem.fit.equality, 
+        fit.measures=TRUE)
+```
+
+You don't have to constrain everything at once, either, if you have a theoretical reason not to. You can constrain individaul parameters across groups if you don't want to constrain all loadings, for example. I do this here, where I constrain just certain indicators to be the same across groups. Though I don't show it in this example, you can also fix parameters in one group, but not the other group through syntax such as `c(1,NA)*sf4`. This will fix the loading of the sf4 item to 1 in the first group but not the second group, where `NA` tells lavaan to freely estimate the parameter for that group. Note that this syntax for fixing and equating variables can be extended to more than two groups simply by increasing the number of items in the list. For example, if you wanted to equate parameters across three groups in the example below you would use `c(v6,v6,v6)*sf6`. This syntax can be extended to any parameters in your model that you want to fix or equate, not just loadings of observed variables on latent factors. 
+
+```{r warning=FALSE}
+sem.model.partequality <- 'physfun =~ c(v3,v3)*sf3+sf4+sf5+c(v6,v6)*sf6+sf7+sf8+sf9+sf10+sf11+sf12'
+sem.fit.partequality <- sem(sem.model.partequality,
+                            data = semdat, 
+                            group = "condition", 
+                            missing="fiml") 
+#missing = fiml implements full information ML for missingness
+summary(sem.fit.partequality, 
+        fit.measures=TRUE)
+```
+
+<br>
+## Model Comparison Using lavaan
+Note that models that are compared using most fit statistics must be nested in order for the tests to be valid. Nested models are models that contain at least all of the same exact observed variables contained in the less complicated model. For nested models, you can only free or fix parameter(s), not do both. The underlying data matrix must be the exact same between models. The code below compares the reduced model with more df (paths between physical functioning and observed indicators equated to be the same) to the more saturated model with less df (paths between physical functioning and indicators allowed to differ, and thus estimated differently for both conditions). Note that you can compare models directly in order to have an explicit test of factorial measurement invariance. If we retain the null hypothesis, our less saturated model with more parameters fixed is a better fit ot the data, and we can claim that the loadings are equivalent across groups (we have achieved one level of factorial measurement invariance). 
+
+First, we'll fit our model where we allow the lambdas to be different across conditions, which is the default in lavaan.
+```{r}
+sem.model.diff <- 'physfun =~ sf3+sf4+sf5+sf6+sf7+sf8+sf9+sf10+sf11+sf12'
+sem.fit.diff <- sem(sem.model.diff,
+                    data = semdat, 
+                    group = "condition", 
+                    missing="fiml") 
+#missing = fiml implements full information ML for missingness
+```
+
+Now, we'll compare the models (the model we just made to the model earlier where we equated lambdas - the paths from our latent variables to our observed variables - to be the same across groups) using a chi-squared difference of fit test. This is considered a test of what's typically referred to as weak invariance.
+```{r}
+anova(sem.fit.equality, sem.fit.diff) #model fit comparison
+```
+Since we retain the null hypothesis using the chi-squared difference of fit test, this means that the less saturated model with less parameters estimated (in this case, when the groups have factor loadings equated) fits the data better than the more free model with those factor loadings allowed to differ across groups. This means that we have met weak invariance. You could now keep building on this model, next testing whether intercepts are the same across groups (all the way up to means and residuals constrained to the same across groups, etc.), which would be a test of strong invariance. Note in these models you would keep the factor loadings constrained to be the same since you already know this reflects your data more accurately.  

@@ -18,7 +18,7 @@ day_night = true
 #   Latest font sets (may require updating): https://sourcethemes.com/academic/themes/
 #   Browse built-in font sets in `themes/academic/data/fonts/`
 #   Browse user installed font sets in `data/fonts/`
-font = "Minimal"
+font = "minimal"
 
 # Choose a font size.
 # Sizes: XS (extra small), S (small), M (medium), L (large - DEFAULT), XL (extra large)
@@ -97,8 +97,7 @@ address = {street = "Winterthurerstrasse 190", city = "", region = "Zurich", pos
 coordinates = {latitude = "47.396774", longitude = "8.549367"}
 
 # Directions for visitors to locate you.
-directions = "Enter Building 1 and take the stairs to Office 200 on Floor 2"
-
+directions = "Office: Building Y25, floor L (top floor), room 94"
 # Office hours
 # A list of your office hours. To remove, set to an empty list `[]`.
 office_hours = []
